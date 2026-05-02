@@ -1,0 +1,72 @@
+:root {
+  --line: #cfd4da;
+  --ink: #1d2329;
+  --muted: #69727d;
+}
+
+body {
+  background: #fff;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.page-title {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.academic-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+.table {
+  border-color: var(--line);
+}
+
+.table th {
+  background: #f7f8fa;
+  font-size: 0.88rem;
+}
+
+.risk-low {
+  background: #d9f2df !important;
+}
+
+.risk-medium {
+  background: #ffe1b8 !important;
+}
+
+.risk-high {
+  background: #ffd2d2 !important;
+}
+
+.matrix-cell {
+  min-width: 130px;
+  height: 76px;
+  border: 1px solid #adb5bd;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.86rem;
+}
+
+.home-shell {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-panel {
+  width: min(760px, 100%);
+}
+
+.form-control, .form-select {
+  border-color: #9da7b1;
+}

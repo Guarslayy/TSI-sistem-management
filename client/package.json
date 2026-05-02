@@ -1,0 +1,32 @@
+{
+  "name": "iso-cybersecurity-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "axios": "^1.6.8",
+    "bootstrap": "^5.3.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "react": "^18.2.0",
+    "react-bootstrap": "^2.10.2",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "recharts": "^2.12.7",
+    "tsi-sistem-management": "file:..",
+    "vitest": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.73",
+    "@types/react-dom": "^18.2.23",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.6"
+  }
+}
