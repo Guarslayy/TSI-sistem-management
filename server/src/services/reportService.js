@@ -3,98 +3,264 @@ const { db } = require('../db/database');
 function tableMarkdown(headers, rows) {
   const header = `| ${headers.join(' | ')} |`;
   const divider = `| ${headers.map(() => '---').join(' | ')} |`;
-  const body = rows.map((row) => `| ${row.map((cell) => String(cell ?? '').replace(/\n/g, '<br>')).join(' | ')} |`);
+  const body = rows.map((row) => `| ${row.map((cell) => String(cell ?? '').replace(/\n/g, '<br>').replace(/\|/g, '\\|')).join(' | ')} |`);
   return [header, divider, ...body].join('\n');
+}
+
+function list(items) {
+  return items.map((item) => `- ${item}`).join('\n');
+}
+
+function formatThreatItems(value) {
+  return String(value || '')
+    .split(';')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join('<br>');
+}
+
+function buildAssetThreatTable(category, assets, threats) {
+  const rows = assets
+    .filter((asset) => asset.category === category)
+    .map((asset) => {
+      const related = threats.filter((threat) => threat.asset_id === asset.id);
+      const threatText = related.map((item) => `уязвимость: ${item.vulnerability}; угроза: ${item.threat}; последствие: ${item.consequence}`).join('<br><br>');
+      const mitigationText = related.map((item) => item.mitigation).join('<br>');
+      return [asset.name, threatText || 'Риск не выявлен в учебном наборе данных', mitigationText || 'Периодический пересмотр и базовые меры защиты'];
+    });
+
+  return `### ${category}\n\n${tableMarkdown(['Активы', 'Угрозы', 'Меры снижения риска'], rows)}\n`;
 }
 
 function buildReport() {
   const org = db.prepare('SELECT * FROM organizations LIMIT 1').get();
   const departments = db.prepare('SELECT name, description FROM departments ORDER BY id').all();
   const assets = db.prepare('SELECT * FROM assets ORDER BY id').all();
-  const threats = db.prepare(`SELECT threats.*, assets.name AS asset_name FROM threats JOIN assets ON assets.id = threats.asset_id ORDER BY threats.id`).all();
-  const risks = db.prepare(`SELECT risks.*, assets.name AS asset_name FROM risks JOIN assets ON assets.id = risks.asset_id ORDER BY risks.risk_score DESC`).all();
+  const threats = db.prepare('SELECT threats.*, assets.name AS asset_name, assets.category AS asset_category FROM threats JOIN assets ON assets.id = threats.asset_id ORDER BY threats.id').all();
+  const risks = db.prepare('SELECT risks.*, assets.name AS asset_name FROM risks JOIN assets ON assets.id = risks.asset_id ORDER BY risks.risk_score DESC').all();
   const quantitative = db.prepare('SELECT * FROM quantitative_risks ORDER BY ale DESC').all();
   const controls = db.prepare('SELECT * FROM controls ORDER BY control_type, control_function, id').all();
   const policies = db.prepare('SELECT * FROM policies ORDER BY id').all();
 
   const totalAle = quantitative.reduce((sum, row) => sum + Number(row.ale || 0), 0);
+  const categories = ['Информация / данные', 'Программное обеспечение', 'Аппаратное обеспечение', 'Сеть'];
 
-  return `# Система менеджмента информационной безопасности для ООО «MediNova Clinic»
+  return `# Lab Report - Document Enterprise Cybersecurity Issues
 
-## 1. Введение
+## Система менеджмента информационной безопасности для ООО «MediNova Clinic»
 
-Данный учебный проект описывает модель системы менеджмента информационной безопасности для частной медицинской клиники. Работа основана на идеях ISO 27001 и ISO 27005: определение области применения, инвентаризация активов, анализ угроз, оценка рисков, выбор контролей и подготовка политик. Проект не является инструментом сертификации, а предназначен для демонстрации методики на защите.
+**Дисциплина:** Информационная безопасность  
+**Стандарты:** ISO 27001, ISO 27005  
+**Организация:** ${org.name} / ООО «MediNova Clinic»  
+**Тип работы:** учебная симуляция ISMS, не инструмент реальной сертификации
 
-## 2. Описание организации
+---
+
+## Objectives
+
+Part 1: Зафиксировать оценку проблем кибербезопасности выбранной организации.  
+Part 2: Определить основные типы активов, которыми владеет организация.  
+Part 3: Перечислить угрозы для каждого типа активов.  
+Part 4: Предложить методы снижения риска для каждой угрозы.  
+
+Дополнительно в работе показаны элементы ISO 27001 и ISO 27005: область применения ISMS, реестр рисков, качественная и количественная оценка рисков, контроли безопасности, политики и итоговый план внедрения.
+
+---
+
+## Scenario
+
+ООО «MediNova Clinic» — частная медицинская клиника и диагностический центр. Организация обслуживает пациентов, ведет электронные медицинские карты, обрабатывает лабораторные результаты, финансовую и страховую документацию, а также персональные данные сотрудников.
+
+В клинике работает около ${org.employees} сотрудников. Основные подразделения включают руководство, IT-отдел, медицинский персонал, диагностическую лабораторию, регистратуру / Call Center, финансовый отдел, HR, юридический отдел и физическую охрану.
+
+Критические бизнес-процессы:
+
+${list(formatThreatItems(org.business_processes).split('<br>'))}
+
+Технологическая среда:
+
+${list(formatThreatItems(org.technology_environment).split('<br>'))}
+
+Клиника должна обеспечивать конфиденциальность медицинских и персональных данных, целостность медицинских записей и доступность критических сервисов. Для этого в проекте моделируется система менеджмента информационной безопасности на основе подходов ISO 27001 и ISO 27005.
+
+---
+
+## Instructions
+
+На основе сценария необходимо определить активы, угрозы и меры защиты. Для удобства активы разделены на четыре категории:
+
+- Information/Data Assets — данные, которые используются, хранятся или передаются организацией.
+- Software Assets — операционные системы, серверное ПО, базы данных, пользовательские и корпоративные приложения.
+- Physical Assets — физические устройства, серверы, рабочие станции, камеры, считыватели и другое оборудование.
+- Network Assets — сети, сетевые сервисы, VPN, Wi-Fi, firewall, интернет-канал.
+
+---
+
+## Part 1: Record the assessment of cybersecurity issues
+
+### 1.1 Описание организации
 
 ${org.description}
 
-- Название: ${org.name}
-- Сфера деятельности: ${org.domain}
-- Количество сотрудников: ${org.employees}
-- Цели безопасности: ${org.security_objectives}
-
-### Подразделения
-
-${tableMarkdown(['Подразделение', 'Описание'], departments.map((d) => [d.name, d.description]))}
-
-## 3. Область применения ISMS
-
+**Область применения ISMS:**  
 ${org.scope}
 
-## 4. Важные информационные активы
+**Цели безопасности:**  
+${org.security_objectives}
 
-${tableMarkdown(['ID', 'Актив', 'Категория', 'Владелец', 'К', 'Ц', 'Д', 'Ценность'], assets.map((a) => [a.id, a.name, a.category, a.owner_department, a.confidentiality_level, a.integrity_level, a.availability_level, a.business_value]))}
+### 1.2 Подразделения организации
 
-## 5. Угрозы и уязвимости
+${tableMarkdown(['Подразделение', 'Описание'], departments.map((department) => [department.name, department.description]))}
 
-${tableMarkdown(['Актив', 'Уязвимость', 'Угроза', 'Последствие', 'Мера снижения'], threats.map((t) => [t.asset_name, t.vulnerability, t.threat, t.consequence, t.mitigation]))}
+### 1.3 Основные проблемы кибербезопасности
 
-## 6. Методология оценки рисков
+${tableMarkdown(
+  ['Проблема', 'Описание', 'Возможное влияние'],
+  [
+    ['Защита медицинских данных', 'Клиника хранит персональные данные пациентов, электронные медицинские карты и лабораторные результаты.', 'Утечка данных, нарушение конфиденциальности, репутационный ущерб.'],
+    ['Доступность медицинских сервисов', 'Регистрация пациентов, запись на прием и доступ врачей к медицинским данным зависят от IT-инфраструктуры.', 'Простой клиники, задержка медицинских услуг, финансовые потери.'],
+    ['Удаленный доступ', 'Врачи и администраторы используют VPN и удаленный доступ к внутренним системам.', 'Компрометация учетных записей, несанкционированный доступ.'],
+    ['Резервное копирование', 'Медицинские данные должны быть восстановимы после ransomware, сбоя или ошибки.', 'Потеря данных и невозможность продолжать работу.'],
+    ['Физическая безопасность', 'Серверы, CCTV и система контроля доступа должны быть защищены от физического воздействия.', 'Кража оборудования, повреждение инфраструктуры, нарушение доступности.']
+  ]
+)}
 
-Для качественной оценки ISO 27005 используется учебная модель TP/VL/SEV/DET. TP отражает вероятность угрозы, VL — уровень уязвимости, SEV — влияние на бизнес, DET — возможность обнаружения. Чем выше DET, тем ниже итоговый риск, потому что событие легче выявить и остановить.
+---
 
-Формула: риск = round((((TP - 1) + (VL - 1) + (SEV - 1) + (5 - DET)) / 16) × 100).
+## Part 2: Record the different types of assets
 
-## 7. Реестр рисков
+${categories.map((category) => {
+  const rows = assets
+    .filter((asset) => asset.category === category)
+    .map((asset) => [asset.name, asset.owner_department, asset.confidentiality_level, asset.integrity_level, asset.availability_level, asset.business_value]);
+  return `### ${category}\n\n${tableMarkdown(['Актив', 'Владелец / отдел', 'Конфиденциальность', 'Целостность', 'Доступность', 'Бизнес-ценность'], rows)}`;
+}).join('\n\n')}
 
-${tableMarkdown(['ID', 'Актив', 'Уязвимость', 'Угроза', 'TP', 'VL', 'SEV', 'DET', 'Риск %', 'Уровень', 'Контроль'], risks.map((r) => [r.id, r.asset_name, r.vulnerability, r.threat, r.tp, r.vl, r.sev, r.det, r.risk_score, r.risk_level, r.recommended_control]))}
+---
 
-## 8. Количественная оценка рисков
+## Part 3: List the threats for each asset type
 
-SLE = стоимость актива × Exposure Factor. ALE = SLE × ARO. Общий ожидаемый годовой ущерб: ${totalAle.toFixed(2)} EUR.
+### Вопрос
 
-${tableMarkdown(['Актив', 'Угроза', 'Стоимость', 'EF', 'SLE', 'ARO', 'ALE', 'Рекомендация'], quantitative.map((q) => [q.asset_name, q.threat, q.asset_value, q.exposure_factor, q.sle, q.aro, q.ale, q.recommendation]))}
+**В чем разница между угрозой и уязвимостью?**
 
-## 9. Качественная оценка рисков
+Уязвимость — это слабое место актива, процесса или контроля, которое может быть использовано. Угроза — это возможное событие или действие, которое использует уязвимость и приводит к ущербу. Например, слабый пароль является уязвимостью, а кража учетных данных — угрозой.
 
-Качественная матрица 5×5 сопоставляет вероятность и влияние. Результаты группируются как незначительные, умеренные, существенные и критические. Метод удобен для защиты и первичной приоритизации, но требует экспертного подтверждения.
+${categories.map((category) => buildAssetThreatTable(category, assets, threats)).join('\n')}
 
-## 10. Контроли информационной безопасности
+---
 
-${tableMarkdown(['Название', 'Тип', 'Функция', 'Статус', 'Ответственный отдел'], controls.map((c) => [c.name, c.control_type, c.control_function, c.implementation_status, c.responsible_department]))}
+## Part 4: Recommend mitigation techniques
 
-## 11. Политика информационной безопасности
+Для снижения рисков предложены физические, технические и административные контроли. Они разделяются по функции: предупреждающие, обнаруживающие и корректирующие.
 
-${tableMarkdown(['Политика', 'Цель', 'Периодичность пересмотра'], policies.map((p) => [p.title, p.purpose, p.review_frequency]))}
+${tableMarkdown(
+  ['Тип контроля', 'Функция', 'Контроль', 'Статус', 'Ответственный отдел', 'Связанный риск'],
+  controls.map((control) => [
+    control.control_type,
+    control.control_function,
+    control.name,
+    control.implementation_status,
+    control.responsible_department,
+    control.related_risks
+  ])
+)}
 
-## 12. Процедуры безопасности
+---
 
-Процедуры включают управление доступом, резервное копирование, реагирование на инциденты, удалённый доступ, обновления, шифрование и мониторинг. Каждая процедура имеет владельца, шаги выполнения и механизм контроля.
+## ISO 27005 Risk Assessment
 
-## 13. План внедрения
+Для оценки риска используется учебная модель TP/VL/SEV/DET:
 
-1. Утвердить область применения ISMS и владельцев активов.
-2. Завершить классификацию активов и пересмотр прав доступа.
-3. Внедрить MFA для VPN, почты и административных учетных записей.
-4. Настроить централизованное логирование и регулярный анализ событий.
-5. Проверять резервное восстановление ежемесячно.
-6. Провести обучение персонала и phishing simulation.
-7. Провести внутренний аудит и обновить план обработки рисков.
+- TP — вероятность угрозы.
+- VL — уровень уязвимости.
+- SEV — серьезность / влияние на бизнес.
+- DET — возможность обнаружения.
 
-## 14. Заключение
+Формула:
 
-Разработанная система показывает полный учебный цикл ISMS: организация, активы, угрозы, риски, контроли, политики и отчетность. Для реальной сертификации потребовались бы официальный аудит, доказательства внедрения, юридическая проверка и регулярные измерения эффективности.
+\`\`\`text
+risk = round((((TP - 1) + (VL - 1) + (SEV - 1) + (5 - DET)) / 16) × 100)
+\`\`\`
+
+Чем выше TP, VL и SEV, тем выше риск. Чем выше DET, тем ниже риск, потому что событие легче обнаружить.
+
+${tableMarkdown(
+  ['ID', 'Актив', 'Уязвимость', 'Угроза', 'TP', 'VL', 'SEV', 'DET', 'Риск %', 'Уровень', 'Совет'],
+  risks.map((risk) => [
+    risk.id,
+    risk.asset_name,
+    risk.vulnerability,
+    risk.threat,
+    risk.tp,
+    risk.vl,
+    risk.sev,
+    risk.det,
+    risk.risk_score,
+    risk.risk_level,
+    risk.recommended_control
+  ])
+)}
+
+---
+
+## Quantitative Risk Analysis
+
+Для количественной оценки используются показатели:
+
+\`\`\`text
+SLE = Asset Value × Exposure Factor
+ALE = SLE × ARO
+\`\`\`
+
+Общий ожидаемый годовой ущерб по учебным сценариям: **${totalAle.toFixed(2)} EUR**.
+
+${tableMarkdown(
+  ['Актив', 'Угроза', 'Стоимость актива', 'Exposure Factor', 'SLE', 'ARO', 'ALE', 'Рекомендация'],
+  quantitative.map((risk) => [
+    risk.asset_name,
+    risk.threat,
+    risk.asset_value,
+    risk.exposure_factor,
+    risk.sle,
+    risk.aro,
+    risk.ale,
+    risk.recommendation
+  ])
+)}
+
+---
+
+## Security Policies
+
+${tableMarkdown(
+  ['Политика', 'Цель', 'Область применения', 'Периодичность пересмотра'],
+  policies.map((policy) => [policy.title, policy.purpose, policy.scope, policy.review_frequency])
+)}
+
+---
+
+## Reflection
+
+### 1. Почему полезно категоризировать активы при определении угроз и мер защиты?
+
+Категоризация активов помогает структурировать анализ. Для данных, программного обеспечения, оборудования и сетей характерны разные угрозы и разные меры защиты. Такой подход уменьшает вероятность пропустить важный актив и облегчает выбор контролей.
+
+### 2. Могут ли разные угрозы иметь одинаковые или похожие меры снижения риска?
+
+Да. Например, MFA снижает риск кражи учетных данных для VPN, почты и внутренних систем. Резервное копирование помогает при ransomware, ошибках персонала и сбоях оборудования. Это важно учитывать, потому что один хорошо внедренный контроль может снижать сразу несколько рисков.
+
+### 3. Что показывает применение знаний о киберугрозах к смоделированной организации?
+
+Проект показывает, что защита организации требует комплекса мер. Нельзя ограничиться одним firewall или одной политикой. Для MediNova Clinic нужны технические, административные и физические контроли, регулярная оценка рисков, обучение персонала, резервное копирование, мониторинг и план реагирования на инциденты.
+
+---
+
+## Conclusion
+
+В результате была разработана учебная модель ISMS для ООО «MediNova Clinic». Отчет демонстрирует полный цикл анализа: описание организации, определение активов, угроз и уязвимостей, оценку рисков по ISO 27005, выбор контролей, разработку политик и формирование рекомендаций. Для реальной сертификации ISO 27001 потребовались бы официальный аудит, доказательства внедрения, юридическая проверка и регулярное измерение эффективности контролей.
+
+End of document
 `;
 }
 
