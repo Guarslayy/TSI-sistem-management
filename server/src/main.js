@@ -14,6 +14,35 @@ const port = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
+app.get('/', (req, res) => {
+  res.type('html').send(`
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>ISO CyberSecurity API</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 760px; margin: 48px auto; line-height: 1.5; color: #1d2329; }
+          code, a { color: #0d6efd; }
+          li { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>ISO CyberSecurity API is running</h1>
+        <p>This is the backend service. Open the application UI at <a href="http://127.0.0.1:5173">http://127.0.0.1:5173</a>.</p>
+        <p>Useful API endpoints:</p>
+        <ul>
+          <li><a href="/api/organization">/api/organization</a></li>
+          <li><a href="/api/assets">/api/assets</a></li>
+          <li><a href="/api/threats">/api/threats</a></li>
+          <li><a href="/api/risks">/api/risks</a></li>
+          <li><a href="/api/report">/api/report</a></li>
+        </ul>
+      </body>
+    </html>
+  `);
+});
+
 function asyncRoute(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 }
